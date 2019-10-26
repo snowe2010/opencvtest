@@ -17,6 +17,7 @@ dependencies {
 //    implementation(files("opencv/build/java/opencv-412.jar"))
     implementation("no.tornado:tornadofx:1.7.19")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-javafx:1.3.2")
 }
 
 tasks.withType<KotlinCompile> {

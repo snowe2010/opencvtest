@@ -8,6 +8,9 @@ import javafx.scene.image.WritableImage
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.javafx.JavaFx as Main
+import kotlinx.coroutines.javafx.JavaFx as UI
 import org.opencv.core.Core
 import org.opencv.core.CvType
 import org.opencv.core.CvType.CV_32F
@@ -39,6 +42,7 @@ import java.util.*
 import javax.imageio.ImageIO
 import kotlin.math.abs
 import tornadofx.*
+import java.awt.event.KeyEvent
 
 fun main(args: Array<String>) {
     nu.pattern.OpenCV.loadLocally()
@@ -52,20 +56,42 @@ val testCoords = Rectangle(1670, 460, 70, 60)
 val lastHeartCoords = Rectangle(835, 150, 75, 60)
 
 class MyApp : App(MyView::class)
+
 class MyView : View() {
+
+    val robot = Robot()
     val histogram1 = imageview {
         id = "histogram1"
     }
     val histogram2 = imageview {
         id = "histogram2"
     }
+
+    val testHeart = robot.createScreenCapture(testCoords)
+    val ivHeart1 = ImageView(SwingFXUtils.toFXImage(testHeart, null))
+    val ivHeart2 = ImageView(SwingFXUtils.toFXImage(testHeart, null))
+
     private val labelProperty = SimpleStringProperty("")
-    var label by labelProperty
-    
+    var labelString by labelProperty
+    var label = label(labelProperty) { }
+
+    private val firstHeartProperty = SimpleStringProperty("")
+    var firstHeartString by firstHeartProperty
+    var firstHeartLabel = label(firstHeartProperty) { }
+
+    private val lastHeartProperty = SimpleStringProperty("")
+    var lastHeartString by lastHeartProperty
+    var lastHeartLabel = label(lastHeartProperty) { }
+
+    val base = bufferedImage2Mat(ImageIO.read(File("baseheart.jpg")))
+    var baseCompare: Double? = null
+
     override val root = flowpane {
-        val testHeart = Robot().createScreenCapture(testCoords)
-        val ivHeart1 = ImageView(SwingFXUtils.toFXImage(testHeart, null))
-        val ivHeart2 = ImageView(SwingFXUtils.toFXImage(testHeart, null))
+
+        base.convertTo(base, CV_32F)
+        Core.normalize(base, base, 0.0, 1.0, Core.NORM_MINMAX)
+        baseCompare = Imgproc.compareHist(base, base, 2)
+
         val histogramView = ImageView(SwingFXUtils.toFXImage(testHeart, null))
         histogram1.attachTo(this)
         ivHeart1.attachTo(this)
@@ -76,47 +102,58 @@ class MyView : View() {
         imageview {
             id = "heart2"
         }
-        
-        label = "hi"
-        Thread.sleep(3000)
-        label = "updated"
 
+        label.attachTo(this)
+        firstHeartLabel.attachTo(this)
+        lastHeartLabel.attachTo(this)
+
+        firstHeartString = "starting"
+        lastHeartString = "starting"
+
+        labelString = "starting"
 
         button("Start") {
             useMaxWidth = true
             action {
-                val base = bufferedImage2Mat(ImageIO.read(File("baseheart.jpg")))
-                base.convertTo(base, CV_32F)
-                Core.normalize(base, base, 0.0, 1.0, Core.NORM_MINMAX)
-                
-                repeat(100) {
-                    GlobalScope.launch {
-                        val secondHeart = Robot().createScreenCapture(secondHeartCoords)
-                        println("running second heart")
-                        Platform.runLater { ivHeart1.imageProperty().set(secondHeart.toImage()) }
-                        val frame = bufferedImage2Mat(secondHeart)
-
-                        frame.convertTo(frame, CV_32F);
-                        Core.normalize(frame, frame, 0.0, 1.0, Core.NORM_MINMAX)
-                        val baseCompare = Imgproc.compareHist(base, base, 2)
-                        val frameCompare = Imgproc.compareHist(base, frame, 2)
-//                        println("base: $baseCompare frame: $frameCompare diff ${abs(baseCompare - frameCompare)}")
-                        println("heart is ${if (abs(baseCompare - frameCompare) < 100) "present" else "not present"}")
-                        showHistogram(frame, false)
-                        delay(330)
-                    }
-                    GlobalScope.launch {
-                        val lastHeart = Robot().createScreenCapture(lastHeartCoords)
-
-                        println("running last heart")
-                        Platform.runLater { ivHeart2.imageProperty().set(lastHeart.toImage()) }
-                        delay(330)
+                runBlocking {
+                    launch(Main) {
+                        for (it in 10 downTo 1) {
+                            firstHeartString = "present $it"
+                            delay(2000)
+//                            runGame()
+                        }
+                        firstHeartString = "back to starting"
                     }
                 }
-
             }
+
         }
     }
+
+
+    private suspend fun runGame() {
+//        val secondHeartPresent = checkForHeart(secondHeartCoords, "second")
+//        var present = if (secondHeartPresent) "present" else "not present"
+//        val lastHeartPresent = checkForHeart(lastHeartCoords, "last")
+//        present = if (lastHeartPresent) "present" else "not present"
+//        lastHeartString = present
+        delay(2000)
+    }
+
+    private fun checkForHeart(heartCoords: Rectangle, heartName: String): Boolean {
+//        val heart = robot.createScreenCapture(heartCoords)
+//        val frame = bufferedImage2Mat(heart)
+//        frame.convertTo(frame, CV_32F)
+//        Core.normalize(frame, frame, 0.0, 1.0, Core.NORM_MINMAX)
+//
+//        val frameCompare = Imgproc.compareHist(base, frame, 2)
+//
+//        val b = abs(baseCompare!! - frameCompare) < 100
+//        val present = if (b) "present" else "not present"
+//        println("$heartName heart is $present")
+        return true
+    }
+//    private suspend fun check
 
     private fun showHistogram(frame: Mat, gray: Boolean) {
         // split the frames in multiple images
